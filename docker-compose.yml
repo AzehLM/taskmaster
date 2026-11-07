@@ -1,0 +1,20 @@
+services:
+  dev:
+    build:
+      context: ./docker
+    image: taskmaster-dev
+    # tini en PID 1 pour que taskmasterd se comporte comme sur la future VM
+    init: true
+    entrypoint: ["sh", "/docker/entrypoint.sh"]
+    command: ["sleep", "infinity"]  # le conteneur reste up, on y entre avec `make shell`
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./docker/entrypoint.sh:/docker/entrypoint.sh:ro
+      - ./docker/supervisor/conf.d:/etc/supervisor/conf.d:ro
+      - gomod:/go
+      - gocache:/root/.cache/go-build
+
+volumes:
+  gomod:
+  gocache:
