@@ -1,0 +1,83 @@
+# daemon configuration
+taskmaster:
+  socket: /tmp/taskmaster.sock
+  logfile: /var/log/taskmaster/taskmasterd.log
+  loglevel: info          # debug | info | warn | error
+  syslog: true            # bonus logging : duplicate to syslog
+
+
+# every keys are optional except for `cmd`, missing keys get a default value
+# arbitrary decisions :
+# - stdout / stderr missing : output thrown away.
+# - end ADDS values to the daemon environment, doesn't replace them (this is how supervisor behaves)
+programs:
+  nginx:
+    cmd: ["/usr/sbin/nginx", "-g", "daemon off;"]
+    numprocs: 1
+    autostart: true
+    autorestart: unexpected   # always | never | unexpected
+    exitcodes: [0]
+    starttime: 5              # secondes à survivre pour passer RUNNING
+    startretries: 3           # échecs de démarrage avant passage a l'état FATAL
+    stopsignal: QUIT          # nom court, sans le préfixe SIG, a voir ce que tu préfères
+    stoptime: 10              # secondes avant le SIGKILL
+    stdout: /var/log/taskmaster/nginx.stdout.log
+    stderr: /var/log/taskmaster/nginx.stderr.log
+    workingdir: /
+    umask: "0022"             # entre guillemets pour garder les quatres champs
+    user: www-data            # bonus privilèges ; omis = pas de changement
+
+  # Plusieurs instances, nommées worker:0 .. worker:3.
+  worker:
+    cmd: ["/bin/sleep", "3600"]
+    numprocs: 4
+    autostart: true
+    autorestart: always
+    starttime: 1
+    startretries: 5
+    stopsignal: TERM
+    stoptime: 5
+    stdout: /var/log/taskmaster/worker.stdout.log
+    stderr: /var/log/taskmaster/worker.stderr.log
+    user: guizer
+    env:
+      WORKER_MODE: "production"
+      WORKER_TIMEOUT: "30"      # guillemets pour éviter la coercition de type
+
+  # Tâche one-shot : elle doit sortir, et sa sortie 0 est normale.
+  # autorestart: never + exitcodes: [0] donne EXITED et pas de relance.
+  migrate:
+    cmd: ["/bin/sh", "-c", "echo migration; sleep 2"]
+    autostart: false
+    autorestart: never
+    exitcodes: [0]
+    starttime: 0              # 0 = RUNNING dès que l'exec réussit
+    stdout: /var/log/taskmaster/migrate.log
+    stderr: /var/log/taskmaster/migrate.log
+
+  # Programme de test, échoue immédiatement, donc STARTING -> BACKOFF en boucle, puis FATAL après 2 tentatives.
+  flaky:
+    cmd: ["/bin/sh", "-c", "exit 1"]
+    autostart: true
+    autorestart: unexpected
+    exitcodes: [0]
+    starttime: 3
+    startretries: 2
+
+  # Inonde stdout. À rediriger vers un vrai fichier (jamais vers un pipe lu par le daemon).
+  noisy:
+    cmd: ["/bin/sh", "-c", "while true; do date; done"]
+    autostart: false
+    autorestart: always
+    starttime: 1
+    stdout: /var/log/taskmaster/noisy.log
+    # stderr absent : jeté
+
+  # Ignore SIGTERM, donc il faut aller jusqu'au SIGKILL après stoptime.
+  stubborn:
+    cmd: ["/bin/sh", "-c", "trap '' TERM; while true; do sleep 1; done"]
+    autostart: false
+    autorestart: never
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 3
