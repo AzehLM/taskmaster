@@ -41,6 +41,10 @@ down:
 shell: up
 	$(COMPOSE) exec $(SVC) bash
 
+.PHONY: bash
+bash:
+	$(COMPOSE) exec $(SVC) bash
+
 # Compile dans le conteneur sans y entrer
 .PHONY: dbuild
 dbuild: up
