@@ -3,6 +3,7 @@ services:
     build:
       context: ./docker
     image: taskmaster-dev
+    restart: always
     # tini en PID 1 pour que taskmasterd se comporte comme sur la future VM
     init: true
     entrypoint: ["sh", "/docker/entrypoint.sh"]
